@@ -59,3 +59,46 @@ uint16_t crc16(const uint8_t *data, size_t len) {
   }
   return crc;
 }
+
+void encrypt_cbc_with_crc(const std::vector<uint8_t> &input, std::vector<uint8_t> &output, uint8_t iv[16]) {
+  std::vector<uint8_t> data_with_crc = input;
+  uint16_t crc = crc16(input.data(), input.size());
+  data_with_crc.push_back(crc >> 8);
+  data_with_crc.push_back(crc & 0xFF);
+
+  size_t len = data_with_crc.size();
+  size_t padded_len = ((len / 16) + 1) * 16;
+  std::vector<uint8_t> padded(padded_len);
+
+  memcpy(padded.data(), data_with_crc.data(), len);
+  uint8_t pad = padded_len - len;
+  for (size_t i = len; i < padded_len; ++i) padded[i] = pad;
+
+  esp_fill_random(iv, 16);
+  output.resize(padded_len);
+
+  esp_aes_setkey_enc(&ctx_, key_, 128);
+  esp_aes_crypt_cbc(&ctx_, ESP_AES_ENCRYPT, padded_len, iv, padded.data(), output.data());
+}
+
+bool decrypt_cbc_with_crc(const std::vector<uint8_t> &input, std::vector<uint8_t> &output, const uint8_t iv[16]) {
+  size_t len = input.size();
+  std::vector<uint8_t> decrypted(len);
+
+  esp_aes_setkey_dec(&ctx_, key_, 128);
+  esp_aes_crypt_cbc(&ctx_, ESP_AES_DECRYPT, len, const_cast<uint8_t *>(iv), input.data(), decrypted.data());
+
+  uint8_t pad = decrypted[len - 1];
+  if (pad == 0 || pad > 16) return false;
+  decrypted.resize(len - pad);
+
+  if (decrypted.size() < 3) return false;
+  size_t data_len = decrypted.size() - 2;
+  uint16_t received_crc = (decrypted[data_len] << 8) | decrypted[data_len + 1];
+  uint16_t computed_crc = crc16(decrypted.data(), data_len);
+  if (received_crc != computed_crc) return false;
+
+  output.assign(decrypted.begin(), decrypted.begin() + data_len);
+  return true;
+}
+
