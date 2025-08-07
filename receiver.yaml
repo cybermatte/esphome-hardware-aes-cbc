@@ -1,0 +1,60 @@
+esphome:
+  name: lora_receiver
+  platform: ESP32
+  board: esp32dev
+
+external_components:
+  - source: github://cybermatte/esphome-hardware-aes-cbc
+  - source: github://oxan/esphome-sx126x
+
+wifi:
+  ssid: "your_wifi"
+  password: "your_password"
+
+logger:
+
+custom_component:
+  - lambda: |-
+      auto aes = new HardwareAESCBCComponent();
+      App.register_component(aes);
+
+      id(sx126x_component).on_packet([](std::vector<uint8_t> x) {
+        if (x.size() < 48) {
+          ESP_LOGW("receiver", "Packet too short");
+          return;
+        }
+
+        uint8_t iv[16];
+        memcpy(iv, x.data(), 16);
+        std::vector<uint8_t> encrypted(x.begin() + 16, x.end());
+        std::vector<uint8_t> decrypted;
+
+        if (!aes->decrypt_cbc_with_hmac(encrypted, decrypted, iv)) {
+          ESP_LOGW("receiver", "Decryption failed or HMAC mismatch");
+          return;
+        }
+
+        if (decrypted.size() < 5) {
+          ESP_LOGW("receiver", "Payload too short");
+          return;
+        }
+
+        uint8_t device_id = decrypted[0];
+        uint8_t counter = decrypted[1];
+        float temp = decrypted[2] / 10.0;
+        float hum = decrypted[3];
+        float pres = decrypted[4] * 10.0;
+
+        ESP_LOGI("receiver", "Device %d → Temp: %.1f°C, Hum: %.0f%%, Pressure: %.0f hPa",
+                 device_id, temp, hum, pres);
+      });
+      return {};
+
+sx126x:
+  id: sx126x_component
+  cs_pin: GPIO5
+  reset_pin: GPIO14
+  busy_pin: GPIO27
+  dio1_pin: GPIO26
+  frequency: 868.0MHz
+  sync_word: 0x12
