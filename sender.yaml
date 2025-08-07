@@ -5,11 +5,6 @@ esphome:
 
 external_components:
   - source: github://cybermatte/esphome-hardware-aes-cbc
-  - source: github://oxan/esphome-sx126x
-
-wifi:
-  ssid: "your_wifi"
-  password: "your_password"
 
 logger:
 
@@ -34,16 +29,17 @@ custom_component:
       std::vector<uint8_t> packet(iv, iv + 16);
       packet.insert(packet.end(), encrypted.begin(), encrypted.end());
 
-      id(sx126x_component).send_packet(packet);
+      id(lora).send_packet(packet);
       ESP_LOGI("sender", "Encrypted packet sent");
       return {};
-      
+
 sx126x:
-  id: sx126x_component
+  id: lora
   cs_pin: GPIO5
   reset_pin: GPIO14
   busy_pin: GPIO27
   dio1_pin: GPIO26
-  frequency: 868.0MHz
-  sync_word: 0x12
-
+  frequency: 868000000
+  modulation: LORA
+  hw_version: sx1262
+  sync_value: [0x12]
