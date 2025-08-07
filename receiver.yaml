@@ -5,11 +5,6 @@ esphome:
 
 external_components:
   - source: github://cybermatte/esphome-hardware-aes-cbc
-  - source: github://oxan/esphome-sx126x
-
-wifi:
-  ssid: "your_wifi"
-  password: "your_password"
 
 logger:
 
@@ -18,7 +13,7 @@ custom_component:
       auto aes = new HardwareAESCBCComponent();
       App.register_component(aes);
 
-      id(sx126x_component).on_packet([](std::vector<uint8_t> x) {
+      id(lora).on_packet([](std::vector<uint8_t> x) {
         if (x.size() < 48) {
           ESP_LOGW("receiver", "Packet too short");
           return;
@@ -51,10 +46,12 @@ custom_component:
       return {};
 
 sx126x:
-  id: sx126x_component
+  id: lora
   cs_pin: GPIO5
   reset_pin: GPIO14
   busy_pin: GPIO27
   dio1_pin: GPIO26
-  frequency: 868.0MHz
-  sync_word: 0x12
+  frequency: 868000000
+  modulation: LORA
+  hw_version: sx1262
+  sync_value: [0x12]
