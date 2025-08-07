@@ -1,0 +1,49 @@
+esphome:
+  name: lora_sender
+  platform: ESP32
+  board: esp32dev
+
+external_components:
+  - source: github://cybermatte/esphome-hardware-aes-cbc
+  - source: github://oxan/esphome-sx126x
+
+wifi:
+  ssid: "your_wifi"
+  password: "your_password"
+
+logger:
+
+custom_component:
+  - lambda: |-
+      auto aes = new HardwareAESCBCComponent();
+      App.register_component(aes);
+
+      static uint8_t counter = 0;
+      std::vector<uint8_t> payload = {
+        0x01,              // Device ID
+        counter++,         // Message counter
+        225,               // Temp (22.5°C * 10)
+        55,                // Humidity (%)
+        101,               // Pressure (1010 hPa / 10)
+      };
+
+      std::vector<uint8_t> encrypted;
+      uint8_t iv[16];
+      aes->encrypt_cbc_with_hmac(payload, encrypted, iv);
+
+      std::vector<uint8_t> packet(iv, iv + 16);
+      packet.insert(packet.end(), encrypted.begin(), encrypted.end());
+
+      id(sx126x_component).send_packet(packet);
+      ESP_LOGI("sender", "Encrypted packet sent");
+      return {};
+      
+sx126x:
+  id: sx126x_component
+  cs_pin: GPIO5
+  reset_pin: GPIO14
+  busy_pin: GPIO27
+  dio1_pin: GPIO26
+  frequency: 868.0MHz
+  sync_word: 0x12
+
