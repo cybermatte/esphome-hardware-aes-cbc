@@ -1,0 +1,13 @@
+esphome:
+  name: aes_test_node
+  platform: ESP32
+  board: esp32dev
+
+external_components:
+  - source: github://cybermatte/esphome-hardware-aes-cbc
+    refresh: 0s
+
+custom_component:
+  - lambda: |-
+      auto aes = new HardwareAESCBCComponent();
+      App.register_component(aes);
