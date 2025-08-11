@@ -8,6 +8,14 @@ external_components:
 
 logger:
 
+globals:
+  - id: aes_key_str
+    type: std::string
+    initial_value: "mysecretkey123"
+  - id: hmac_key_str
+    type: std::string
+    initial_value: "anothersecretkey456"
+
 spi:
   clk_pin: GPIO18
   mosi_pin: GPIO23
