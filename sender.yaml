@@ -8,6 +8,47 @@ external_components:
 
 logger:
 
+esphome:
+  name: lora_sender
+  platform: ESP32
+  board: esp32dev
+
+wifi:
+  ssid: "your_wifi"
+  password: "your_password"
+
+logger:
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+
+sensor:
+  - platform: bme280
+    temperature:
+      name: "BME280 Temperature"
+      id: temp_bme
+    pressure:
+      name: "BME280 Pressure"
+      id: pressure_bme
+    humidity:
+      name: "BME280 Humidity"
+      id: humidity_bme
+    address: 0x76
+    update_interval: 60s
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+  miso_pin: GPIO19
+
+lora:
+  cs_pin: GPIO5
+  reset_pin: GPIO14
+  dio0_pin: GPIO26
+  frequency: 915MHz
+  id: lora
+
 custom_component:
   - lambda: |-
       auto aes = new HardwareAESCBCComponent();
@@ -15,11 +56,11 @@ custom_component:
 
       static uint8_t counter = 0;
       std::vector<uint8_t> payload = {
-        0x01,              // Device ID
-        counter++,         // Message counter
-        225,               // Temp (22.5°C * 10)
-        55,                // Humidity (%)
-        101,               // Pressure (1010 hPa / 10)
+        0x01,  // Device ID
+        counter++,
+        (uint8_t)(id(temp_bme).state * 10),
+        (uint8_t)(id(humidity_bme).state),
+        (uint8_t)(id(pressure_bme).state / 10)
       };
 
       std::vector<uint8_t> encrypted;
@@ -30,16 +71,7 @@ custom_component:
       packet.insert(packet.end(), encrypted.begin(), encrypted.end());
 
       id(lora).send_packet(packet);
-      ESP_LOGI("sender", "Encrypted packet sent");
+      ESP_LOGI("sender", "Encrypted sensor packet sent");
       return {};
+    update_interval: 60s
 
-sx126x:
-  id: lora
-  cs_pin: GPIO5
-  reset_pin: GPIO14
-  busy_pin: GPIO27
-  dio1_pin: GPIO26
-  frequency: 868000000
-  modulation: LORA
-  hw_version: sx1262
-  sync_value: [0x12]
