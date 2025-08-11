@@ -16,6 +16,17 @@ globals:
     type: std::string
     initial_value: "anothersecretkey456"
 
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
+          aes->set_key_from_string(id(aes_key_str), 16);       // AES-128
+          aes->set_hmac_key_from_string(id(hmac_key_str), 32); // HMAC-256
+          App.register_component(aes);
+
+
 spi:
   clk_pin: GPIO18
   mosi_pin: GPIO23
