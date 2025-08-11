@@ -8,17 +8,6 @@ external_components:
 
 logger:
 
-esphome:
-  name: lora_sender
-  platform: ESP32
-  board: esp32dev
-
-wifi:
-  ssid: "your_wifi"
-  password: "your_password"
-
-logger:
-
 i2c:
   sda: GPIO21
   scl: GPIO22
