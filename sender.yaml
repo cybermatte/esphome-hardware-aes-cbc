@@ -6,6 +6,14 @@ esphome:
 external_components:
   - source: github://cybermatte/esphome-hardware-aes-cbc
 
+globals:
+  - id: aes_key_str
+    type: std::string
+    initial_value: "mysecretkey123"
+  - id: hmac_key_str
+    type: std::string
+    initial_value: "anothersecretkey456"
+
 logger:
 
 i2c:
