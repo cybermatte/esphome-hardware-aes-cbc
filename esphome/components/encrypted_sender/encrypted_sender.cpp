@@ -4,27 +4,47 @@
 namespace esphome {
 namespace encrypted_sender {
 
-static const char *TAG = "encrypted_sender";
+static const char *const TAG = "encrypted_sender";
 
-void EncryptedSenderComponent::update() {
-  static uint8_t counter = 0;
+void EncryptedSenderComponent::setup() {
+  ESP_LOGI(TAG, "EncryptedSenderComponent initialized");
+}
 
-  std::vector<uint8_t> payload = {
-    0x01,
-    counter++,
-    static_cast<uint8_t>(temperature_sensor->state * 10),
-    static_cast<uint8_t>(humidity_sensor->state)
-  };
+void EncryptedSenderComponent::loop() {
+  uint32_t now = millis();
+  if (now - last_send_ >= update_interval_ms_) {
+    last_send_ = now;
+    send_encrypted_data_();
+  }
+}
 
+void EncryptedSenderComponent::send_encrypted_data_() {
+  if (!temperature_sensor_ || !humidity_sensor_ || !aes_ || !lora_) {
+    ESP_LOGW(TAG, "Missing dependencies, skipping send");
+    return;
+  }
+
+  float temp = temperature_sensor_->state;
+  float hum = humidity_sensor_->state;
+
+  // Format payload
+  char payload[32];
+  snprintf(payload, sizeof(payload), "T:%.2f H:%.2f", temp, hum);
+
+  // Encrypt
   std::vector<uint8_t> encrypted;
-  uint8_t iv[16];
-  aes->encrypt_cbc_with_hmac(payload, encrypted, iv);
+  if (!aes_->encrypt(reinterpret_cast<const uint8_t *>(payload), strlen(payload), encrypted)) {
+    ESP_LOGE(TAG, "Encryption failed");
+    return;
+  }
 
-  std::vector<uint8_t> packet(iv, iv + 16);
-  packet.insert(packet.end(), encrypted.begin(), encrypted.end());
+  // Transmit
+  if (!lora_->transmit(encrypted)) {
+    ESP_LOGE(TAG, "LoRa transmission failed");
+    return;
+  }
 
-  lora->send_packet(packet);
-  ESP_LOGI(TAG, "Encrypted SHT40 sensor packet sent");
+  ESP_LOGI(TAG, "Sent encrypted payload: %s", payload);
 }
 
 }  // namespace encrypted_sender
