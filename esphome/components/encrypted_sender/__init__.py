@@ -1,6 +1,6 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome import sensor
+from esphome.components import sensor
 
 hardware_aes_ns = cg.esphome_ns.namespace("hardware_aes")
 HardwareAESComponent = hardware_aes_ns.class_("HardwareAESComponent", cg.Component)
