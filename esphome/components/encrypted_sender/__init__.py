@@ -3,28 +3,24 @@ import esphome.config_validation as cv
 from esphome.components import sensor
 from esphome.const import CONF_ID
 
-# Reference external AES component
+# Use the base AES component
 hardware_aes_ns = cg.esphome_ns.namespace("hardware_aes")
-HardwareAESCBCComponent = hardware_aes_ns.class_("HardwareAESCBCComponent", cg.Component)
+HardwareAESComponent = hardware_aes_ns.class_("HardwareAESComponent", cg.Component)
 
-# Use generic Component for sx126x since internal class isn't exposed
-SX126xComponent = cg.Component
+SX126xComponent = cg.Component  # Generic reference to LoRa
 
-# Define namespace for this component
 encrypted_sender_ns = cg.esphome_ns.namespace("encrypted_sender")
 EncryptedSenderComponent = encrypted_sender_ns.class_("EncryptedSenderComponent", cg.Component)
 
-# Configuration schema
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(EncryptedSenderComponent),
     cv.Required("temperature_sensor"): cv.use_id(sensor.Sensor),
     cv.Required("humidity_sensor"): cv.use_id(sensor.Sensor),
-    cv.Required("aes"): cv.use_id(HardwareAESCBCComponent),
+    cv.Required("aes"): cv.use_id(HardwareAESComponent),
     cv.Required("lora"): cv.use_id(SX126xComponent),
     cv.Optional("update_interval", default="60s"): cv.update_interval,
 }).extend(cv.COMPONENT_SCHEMA)
 
-# Code generation hook
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
