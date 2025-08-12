@@ -6,8 +6,6 @@ esphome:
 external_components:
   - source: github://cybermatte/esphome-hardware-aes-cbc
 
-logger:
-
 globals:
   - id: aes_key_str
     type: std::string
@@ -15,17 +13,22 @@ globals:
   - id: hmac_key_str
     type: std::string
     initial_value: "anothersecretkey456"
+  - id: aes_component
+    type: esphome::hardware_aes::HardwareAESCBCComponent*
+    restore_value: no
+    initial_value: "nullptr"
 
-esphome:
-  on_boot:
-    priority: -100
-    then:
-      - lambda: |-
-          auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
-          aes->set_key_from_string(id(aes_key_str), 16);       // AES-128
-          aes->set_hmac_key_from_string(id(hmac_key_str), 32); // HMAC-256
-          App.register_component(aes);
+on_boot:
+  priority: -100
+  then:
+    - lambda: |-
+        auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
+        aes->set_key_from_string(id(aes_key_str), 16);
+        aes->set_hmac_key_from_string(id(hmac_key_str), 32);
+        App.register_component(aes);
+        id(aes_component) = aes;
 
+logger:
 
 spi:
   clk_pin: GPIO18
@@ -39,32 +42,65 @@ lora:
   frequency: 915MHz
   id: lora
 
+sensor:
+  - platform: template
+    name: "Received Temperature"
+    id: received_temp
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+
+  - platform: template
+    name: "Received Humidity"
+    id: received_humidity
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+
+text_sensor:
+  - platform: template
+    name: "Last Sender ID"
+    id: sender_id
+
+  - platform: template
+    name: "Packet Counter"
+    id: packet_counter
+
 custom_component:
   - lambda: |-
-      auto aes = new HardwareAESCBCComponent();
-      App.register_component(aes);
+      std::vector<uint8_t> packet;
+      if (!id(lora).read_packet(packet)) return {};
 
-      id(lora).on_packet([](std::vector<uint8_t> data) {
-        if (data.size() < 16) {
-          ESP_LOGW("receiver", "Packet too short");
-          return;
-        }
+      if (packet.size() < 20) {
+        ESP_LOGW("receiver", "Packet too short");
+        return {};
+      }
 
-        std::vector<uint8_t> iv(data.begin(), data.begin() + 16);
-        std::vector<uint8_t> encrypted(data.begin() + 16, data.end());
-        std::vector<uint8_t> decrypted;
+      std::vector<uint8_t> iv(packet.begin(), packet.begin() + 16);
+      std::vector<uint8_t> encrypted(packet.begin() + 16, packet.end());
 
-        if (!aes->decrypt_cbc_with_hmac(encrypted, decrypted, iv.data())) {
-          ESP_LOGW("receiver", "Decryption failed or HMAC mismatch");
-          return;
-        }
+      std::vector<uint8_t> decrypted;
+      if (!id(aes_component)->decrypt_cbc_with_hmac(encrypted, decrypted, iv)) {
+        ESP_LOGW("receiver", "Decryption failed");
+        return {};
+      }
 
-        uint8_t device_id = decrypted[0];
-        uint8_t counter = decrypted[1];
-        float temperature = decrypted[2] / 10.0;
-        float humidity = decrypted[3];
-        float pressure = decrypted[4] * 10.0;
+      if (decrypted.size() < 4) {
+        ESP_LOGW("receiver", "Decrypted payload too short");
+        return {};
+      }
 
-        ESP_LOGI("receiver", "Device %d | Count %d | Temp %.1f°C | Hum %.1f%% | Pressure %.1f hPa",
-                 device_id, counter, temperature, humidity, pressure);
-      });
+      uint8_t dev_id = decrypted[0];
+      uint8_t counter = decrypted[1];
+      float temp = decrypted[2] / 10.0;
+      uint8_t humidity = decrypted[3];
+
+      id(sender_id).publish_state("Device " + std::to_string(dev_id));
+      id(packet_counter).publish_state(std::to_string(counter));
+      id(received_temp).publish_state(temp);
+      id(received_humidity).publish_state(humidity);
+
+      ESP_LOGI("receiver", "Received from Device %d | Temp: %.1f°C | Humidity: %d%% | Counter: %d",
+               dev_id, temp, humidity, counter);
+
+      return {};
+    update_interval: 1s
+
