@@ -2,15 +2,18 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import sensor
 
+# Reference namespaces for external components
 hardware_aes_ns = cg.esphome_ns.namespace("hardware_aes")
 HardwareAESComponent = hardware_aes_ns.class_("HardwareAESComponent", cg.Component)
 
 lora_ns = cg.esphome_ns.namespace("lora")
 LoraComponent = lora_ns.class_("LoraComponent", cg.Component)
 
-encrypted_sender_ns = cg.new_ns("encrypted_sender")
+# Define namespace for this component
+encrypted_sender_ns = cg.esphome_ns.namespace("encrypted_sender")
 EncryptedSenderComponent = encrypted_sender_ns.class_("EncryptedSenderComponent", cg.Component)
 
+# Configuration schema
 CONFIG_SCHEMA = cv.Schema({
     cv.GenerateID(): cv.declare_id(EncryptedSenderComponent),
     cv.Required("temperature_sensor"): cv.use_id(sensor.Sensor),
@@ -20,6 +23,7 @@ CONFIG_SCHEMA = cv.Schema({
     cv.Optional("update_interval", default="60s"): cv.update_interval,
 }).extend(cv.COMPONENT_SCHEMA)
 
+# Code generation hook
 async def to_code(config):
     var = cg.new_Pvariable(config[cv.GenerateID()])
     await cg.register_component(var, config)
