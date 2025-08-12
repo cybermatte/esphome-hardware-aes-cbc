@@ -1,14 +1,14 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import sensor, sx126x
+from esphome.components import sensor
 from esphome.const import CONF_ID
 
 # Reference external AES component
 hardware_aes_ns = cg.esphome_ns.namespace("hardware_aes")
 HardwareAESCBCComponent = hardware_aes_ns.class_("HardwareAESCBCComponent", cg.Component)
 
-# Reference SX126x LoRa component directly
-SX126xComponent = sx126x.class_("SX126x", cg.Component)
+# Use generic Component for sx126x since internal class isn't exposed
+SX126xComponent = cg.Component
 
 # Define namespace for this component
 encrypted_sender_ns = cg.esphome_ns.namespace("encrypted_sender")
