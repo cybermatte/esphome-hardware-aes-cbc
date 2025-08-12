@@ -3,6 +3,17 @@ esphome:
   platform: ESP32
   board: esp32dev
 
+  # 🔐 Register AES component on boot
+  on_boot:
+    priority: -100
+    then:
+      - lambda: |-
+          auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
+          aes->set_key_from_string(id(aes_key_str), 16);       // AES-128
+          aes->set_hmac_key_from_string(id(hmac_key_str), 32); // HMAC-256
+          App.register_component(aes);
+          id(aes_component) = aes;
+
 # 🧠 AES & HMAC Keys
 globals:
   - id: aes_key_str
@@ -16,19 +27,13 @@ globals:
     restore_value: no
     initial_value: "nullptr"
 
-# 🔐 Register AES component on boot
-on_boot:
-  priority: -100
-  then:
-    - lambda: |-
-        auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
-        aes->set_key_from_string(id(aes_key_str), 16);       // AES-128
-        aes->set_hmac_key_from_string(id(hmac_key_str), 32); // HMAC-256
-        App.register_component(aes);
-        id(aes_component) = aes;
-
 external_components:
-  - source: github://cybermatte/esphome-hardware-aes-cbc
+  - source:
+      type: git
+      url: https://github.com/cybermatte/esphome-hardware-aes-cbc
+      ref: main
+      path: esphome/components
+    components: [hardware_aes]
 
 logger:
 
@@ -54,12 +59,24 @@ spi:
   mosi_pin: GPIO23
   miso_pin: GPIO19
 
-lora:
+sx126x:
   cs_pin: GPIO5
-  reset_pin: GPIO14
-  dio0_pin: GPIO26
-  frequency: 915MHz
-  id: lora
+  busy_pin: GPIO14
+  rst_pin: GPIO12
+  dio1_pin: GPIO26
+  frequency: 915000000
+  modulation: LORA
+  hw_version: sx1262
+  rf_switch: true
+  pa_power: 10
+  bandwidth: 125_0kHz
+  spreading_factor: 7
+  coding_rate: CR_4_6
+  preamble_size: 8
+  crc_enable: true
+  sync_value: [0x14, 0x24]
+  tcxo_voltage: 1_8V
+  tcxo_delay: 5ms
 
 # 📦 Custom Component to Encrypt and Send Payload
 custom_component:
