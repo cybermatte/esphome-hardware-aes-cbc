@@ -32,23 +32,20 @@ external_components:
 
 logger:
 
-# 🌡️ BME280 Sensor
 i2c:
   sda: GPIO21
   scl: GPIO22
+  scan: true
 
 sensor:
-  - platform: bme280
+  - platform: sht4x
     temperature:
-      name: "BME280 Temperature"
-      id: temp_bme
-    pressure:
-      name: "BME280 Pressure"
-      id: pressure_bme
+      name: "SHT40 Temperature"
+      id: temp_sht
     humidity:
-      name: "BME280 Humidity"
-      id: humidity_bme
-    address: 0x76
+      name: "SHT40 Humidity"
+      id: humidity_sht
+    address: 0x44
     update_interval: 60s
 
 # 📡 LoRa Radio (SX127x)
@@ -72,9 +69,8 @@ custom_component:
       std::vector<uint8_t> payload = {
         0x01,  // Device ID
         counter++,
-        (uint8_t)(id(temp_bme).state * 10),
-        (uint8_t)(id(humidity_bme).state),
-        (uint8_t)(id(pressure_bme).state / 10)
+        (uint8_t)(id(temp_sht).state * 10),
+        (uint8_t)(id(humidity_sht).state)
       };
 
       std::vector<uint8_t> encrypted;
@@ -85,6 +81,7 @@ custom_component:
       packet.insert(packet.end(), encrypted.begin(), encrypted.end());
 
       id(lora).send_packet(packet);
-      ESP_LOGI("sender", "Encrypted sensor packet sent");
+      ESP_LOGI("sender", "Encrypted SHT40 sensor packet sent");
       return {};
     update_interval: 60s
+
