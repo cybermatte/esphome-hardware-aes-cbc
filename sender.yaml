@@ -3,9 +3,7 @@ esphome:
   platform: ESP32
   board: esp32dev
 
-external_components:
-  - source: github://cybermatte/esphome-hardware-aes-cbc
-
+# 🧠 AES & HMAC Keys
 globals:
   - id: aes_key_str
     type: std::string
@@ -13,19 +11,28 @@ globals:
   - id: hmac_key_str
     type: std::string
     initial_value: "anothersecretkey456"
+  - id: aes_component
+    type: esphome::hardware_aes::HardwareAESCBCComponent*
+    restore_value: no
+    initial_value: "nullptr"
 
-esphome:
-  on_boot:
-    priority: -100
-    then:
-      - lambda: |-
-          auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
-          aes->set_key_from_string(id(aes_key_str), 16);       // AES-128
-          aes->set_hmac_key_from_string(id(hmac_key_str), 32); // HMAC-256
-          App.register_component(aes);
+# 🔐 Register AES component on boot
+on_boot:
+  priority: -100
+  then:
+    - lambda: |-
+        auto aes = new esphome::hardware_aes::HardwareAESCBCComponent();
+        aes->set_key_from_string(id(aes_key_str), 16);       // AES-128
+        aes->set_hmac_key_from_string(id(hmac_key_str), 32); // HMAC-256
+        App.register_component(aes);
+        id(aes_component) = aes;
+
+external_components:
+  - source: github://cybermatte/esphome-hardware-aes-cbc
 
 logger:
 
+# 🌡️ BME280 Sensor
 i2c:
   sda: GPIO21
   scl: GPIO22
@@ -44,6 +51,7 @@ sensor:
     address: 0x76
     update_interval: 60s
 
+# 📡 LoRa Radio (SX127x)
 spi:
   clk_pin: GPIO18
   mosi_pin: GPIO23
@@ -56,12 +64,11 @@ lora:
   frequency: 915MHz
   id: lora
 
+# 📦 Custom Component to Encrypt and Send Payload
 custom_component:
   - lambda: |-
-      auto aes = new HardwareAESCBCComponent();
-      App.register_component(aes);
-
       static uint8_t counter = 0;
+
       std::vector<uint8_t> payload = {
         0x01,  // Device ID
         counter++,
@@ -72,7 +79,7 @@ custom_component:
 
       std::vector<uint8_t> encrypted;
       uint8_t iv[16];
-      aes->encrypt_cbc_with_hmac(payload, encrypted, iv);
+      id(aes_component)->encrypt_cbc_with_hmac(payload, encrypted, iv);
 
       std::vector<uint8_t> packet(iv, iv + 16);
       packet.insert(packet.end(), encrypted.begin(), encrypted.end());
@@ -81,4 +88,3 @@ custom_component:
       ESP_LOGI("sender", "Encrypted sensor packet sent");
       return {};
     update_interval: 60s
-
