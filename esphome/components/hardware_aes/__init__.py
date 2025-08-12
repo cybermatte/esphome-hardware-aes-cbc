@@ -1,7 +1,7 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 
-hardware_aes_ns = cg.new_ns("hardware_aes")
+hardware_aes_ns = cg.esphome_ns.namespace("hardware_aes")
 HardwareAESComponent = hardware_aes_ns.class_("HardwareAESComponent", cg.Component)
 
 CONFIG_SCHEMA = cv.Schema({
