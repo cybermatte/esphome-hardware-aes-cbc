@@ -14,7 +14,5 @@ async def to_code(config):
     var = cg.new_Pvariable(config[cv.GenerateID()])
     await cg.register_component(var, config)
 
-    cg.add(var.set_key(config["key"]))
-    cg.add(var.set_hmac_key(config["hmac_key"]))
-
-
+    cg.add(var.set_key_from_string(config["key"]))
+    cg.add(var.set_hmac_key_from_string(config["hmac_key"]))
