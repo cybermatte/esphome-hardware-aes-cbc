@@ -31,9 +31,16 @@ void EncryptedSenderComponent::send_encrypted_data_() {
   char payload[32];
   snprintf(payload, sizeof(payload), "T:%.2f H:%.2f", temp, hum);
 
+  // Try casting to CBC-capable AES
+  auto *cbc = dynamic_cast<hardware_aes::HardwareAESCBCComponent *>(aes_);
+  if (cbc == nullptr) {
+    ESP_LOGW(TAG, "AES component is not CBC-capable, skipping encryption");
+    return;
+  }
+
   // Encrypt
   std::vector<uint8_t> encrypted;
-  if (!aes_->encrypt(reinterpret_cast<const uint8_t *>(payload), strlen(payload), encrypted)) {
+  if (!cbc->encrypt(reinterpret_cast<const uint8_t *>(payload), strlen(payload), encrypted)) {
     ESP_LOGE(TAG, "Encryption failed");
     return;
   }
